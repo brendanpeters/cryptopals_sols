@@ -1,5 +1,6 @@
 
 import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 
 public class Set1 {
 	public static void main(String[] a) {
@@ -33,15 +34,19 @@ public class Set1 {
 	private static void challenge3() {
 		String input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
 		try {
-			char k = CryptoUtils.findKeyXorSingleChar(input);
-			System.out.println(CryptoUtils.xorSingleChar(input, k));
+			byte k = CryptoUtils.findKeyXorSingleChar(Hex.decodeHex(input));
+			System.out.println(CryptoUtils.hex2String(CryptoUtils.xorSingleCharPretty(input, k)));
+			String bonus = CryptoUtils.string2Hex("ETAOIN SHRDLU");
+			System.out.println("bonus: " + bonus);
+			System.out.println(CryptoUtils.hex2String(CryptoUtils.xorSingleCharPretty(bonus, k)));
 			System.out.println("=============================");
-			for (Character c : CryptoUtils.CHAR_FREQ_TBL.keySet()) {
-				System.out.println(CryptoUtils.xorSingleChar(input, c));
-			}
 		} catch (DecoderException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private static void challenge4() {
+
 	}
 
 }
