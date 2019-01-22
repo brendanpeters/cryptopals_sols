@@ -4,6 +4,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
@@ -115,78 +117,77 @@ public class Set1 {
 	}
 
 	private static void challenge6() throws FileNotFoundException, IOException, DecoderException {
-		//		List<String> lines = new ArrayList<String>();
 		String encB64 = "";
 		try (BufferedReader br = new BufferedReader(new FileReader("src\\rsc\\s1c6.txt"))) {
 			String line;
 			while ((line = br.readLine()) != null) {
-				//				lines.add(line);
 				encB64 += line;
 			}
 		}
-		// get longest line in file
-		//		int maxLen = 0, len;
-		//		for (int i = 0; i < lines.size(); i++) {
-		//			len = lines.get(i).length();
-		//			if (len > maxLen) {
-		//				maxLen = len;
-		//			}
-		//		}
-		//		byte[][] linesBytes = new byte[lines.size()][maxLen];
-		//		for (int i = 0; i < lines.size(); i++) {
-		//			linesBytes[i] = Base64.decodeBase64(lines.get(i));
-		//		}
-		//		System.out.println(linesBytes.length + " : " + linesBytes[0].length);
-		//		System.out.println(Arrays.deepToString(linesBytes));
 
 		byte[] enc = Base64.decodeBase64(encB64);
 		System.out.println(Arrays.toString(enc));
 
 		int maxKeySize = 40;
 		byte[] sec1, sec2, sec3, sec4;
-		//		int hammDist;
-		double hammDistNormalized, bestScore = Double.MAX_VALUE;
-		int bestKeySize = 0;
+		double hammDistNormalized;
+		Map<Integer, Double> keySize2Scores = new HashMap<Integer, Double>();
 		for (int i = 2; i < maxKeySize; i++) {
 			sec1 = CryptoUtils.getSubArray(enc, 0, i - 1);
 			sec2 = CryptoUtils.getSubArray(enc, i, 2 * i - 1);
 			sec3 = CryptoUtils.getSubArray(enc, 2 * i, 3 * i - 1);
 			sec4 = CryptoUtils.getSubArray(enc, 3 * i, 4 * i - 1);
-			//			hammDist = CryptoUtils.hammingDist(sec1, sec2);
-			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3) + CryptoUtils.hammingDist(sec3, sec4)
-					+ CryptoUtils.hammingDist(sec4, sec1))) / (4 * i);
-			if (hammDistNormalized < bestScore) {
-				bestScore = hammDistNormalized;
-				bestKeySize = i;
+			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3) + CryptoUtils.hammingDist(sec3, sec4))) / (3 * i);
+
+			if (keySize2Scores.keySet().size() < 3) {
+				keySize2Scores.put(i, hammDistNormalized);
+			} else {
+				// find minimum key
+				int maxKey = -1;
+				double maxVal = Double.MIN_VALUE;
+				// find current min key-value pair
+				for (Integer k : keySize2Scores.keySet()) {
+					if (keySize2Scores.get(k) > maxVal) {
+						maxKey = k;
+						maxVal = keySize2Scores.get(k);
+					}
+				}
+				if (hammDistNormalized < maxVal) {
+					keySize2Scores.remove(maxKey);
+					keySize2Scores.put(i, hammDistNormalized);
+				}
 			}
 		}
 
-		System.out.println("bestScore : " + bestScore);
-		System.out.println("bestKeySize : " + bestKeySize);
-		System.out.println(enc.length % bestKeySize);
+		System.out.println("min scores : " + keySize2Scores);
+
 		System.out.println("enc length : " + enc.length);
 
-		int numBlocks = (int) Math.ceil(((double) enc.length) / bestKeySize);
+		// try for all best scores
+		for (Integer k : keySize2Scores.keySet()) {
 
-		byte[][] blocksOfKeySize = new byte[numBlocks][bestKeySize];
-		for (int i = 0; i < numBlocks - 1; i++) {
-			for (int j = 0; j < bestKeySize; j++) {
-				blocksOfKeySize[i][j] = enc[bestKeySize * i + j];
-				//				System.out.println(bestKeySize * i + j);
+			int numBlocks = (int) Math.ceil(((double) enc.length) / k);
+
+			byte[][] blocksOfKeySize = new byte[numBlocks][k];
+			for (int i = 0; i < numBlocks - 1; i++) {
+				for (int j = 0; j < k; j++) {
+					blocksOfKeySize[i][j] = enc[k * i + j];
+				}
 			}
-		}
-		byte[][] transposed = CryptoUtils.transpose(blocksOfKeySize);
-		System.out.println(Arrays.deepToString(blocksOfKeySize));
-		System.out.println(Arrays.deepToString(transposed));
+			byte[][] transposed = CryptoUtils.transpose(blocksOfKeySize);
+			System.out.println(Arrays.deepToString(blocksOfKeySize));
+			System.out.println(Arrays.deepToString(transposed));
 
-		// solve each block as single-character XOR
-		byte[] key = new byte[bestKeySize];
-		for (int i = 0; i < transposed.length; i++) {
-			key[i] = CryptoUtils.findKeyXorSingleChar(transposed[i]);
-		}
-		System.out.println("keys : " + Arrays.toString(key));
+			// solve each block as single-character XOR
+			byte[] key = new byte[k];
+			for (int i = 0; i < transposed.length; i++) {
+				key[i] = CryptoUtils.findKeyXorSingleChar(transposed[i]);
+			}
+			System.out.println("keys : " + Arrays.toString(key));
 
-		System.out.println(CryptoUtils.hex2String(Hex.encodeHexString(CryptoUtils.repeatingKeyXor(enc, key))));
+			// final output
+			System.out.println(CryptoUtils.hex2String(Hex.encodeHexString(CryptoUtils.repeatingKeyXor(enc, key))));
+		}
 	}
 
 }
