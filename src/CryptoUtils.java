@@ -1,5 +1,11 @@
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.codec.DecoderException;
@@ -7,6 +13,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
 public class CryptoUtils {
+	public static final String RSC_DIR_PREFIX = "src\\rsc\\";
 	public static Map<Character, Double> CHAR_FREQ_TBL = new HashMap<Character, Double>();
 	static {
 		//		CHAR_FREQ_TBL.put('0', 12.02);
@@ -342,6 +349,38 @@ public class CryptoUtils {
 		for (int i = 0; i < M; i++) {
 			for (int j = 0; j < N; j++) {
 				output[j][i] = A[i][j];
+			}
+		}
+		return output;
+	}
+	public static boolean checkArraysSame(byte[] x, byte[] y) {
+		if (x.length != y.length) {
+			throw new IllegalArgumentException("Arrays must be same length");
+		}
+		for (int i = 0; i < x.length; i++) {
+			if (x[i] != y[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static String readFileIntoLine(String filePath) throws FileNotFoundException, IOException {
+		String output = "";
+		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				output += line;
+			}
+		}
+		return output;
+	}
+	public static List<String> readFileIntoLines(String filePath) throws FileNotFoundException, IOException {
+		List<String> output = new ArrayList<String>();
+		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				output.add(line);
 			}
 		}
 		return output;

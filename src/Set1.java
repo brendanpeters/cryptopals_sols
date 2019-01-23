@@ -3,9 +3,19 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
@@ -27,14 +37,20 @@ public class Set1 {
 		System.out.println("Challenge 5: " + challenge5());
 		try {
 			challenge6();
+			challenge7();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (DecoderException e) {
 			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			e.printStackTrace();
 		}
 		System.out.println("DONE");
+		challenge8();
 	}
 
 	private static boolean challenge1() {
@@ -117,13 +133,7 @@ public class Set1 {
 	}
 
 	private static void challenge6() throws FileNotFoundException, IOException, DecoderException {
-		String encB64 = "";
-		try (BufferedReader br = new BufferedReader(new FileReader("src\\rsc\\s1c6.txt"))) {
-			String line;
-			while ((line = br.readLine()) != null) {
-				encB64 += line;
-			}
-		}
+		String encB64 = CryptoUtils.readFileIntoLine(CryptoUtils.RSC_DIR_PREFIX + "s1c6.txt");
 
 		byte[] enc = Base64.decodeBase64(encB64);
 		System.out.println(Arrays.toString(enc));
@@ -188,6 +198,65 @@ public class Set1 {
 			// final output
 			System.out.println(CryptoUtils.hex2String(Hex.encodeHexString(CryptoUtils.repeatingKeyXor(enc, key))));
 		}
+	}
+
+	private static void challenge7() throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException {
+		String key = "YELLOW SUBMARINE";
+		String encB64 = CryptoUtils.readFileIntoLine(CryptoUtils.RSC_DIR_PREFIX + "s1c7.txt");
+		Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
+		try {
+			c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes(), "AES"));
+			System.out.println(" === BEGIN CHALLENGE 7 === ");
+			byte[] dec = c.doFinal(Base64.decodeBase64(encB64));
+			System.out.println(new String(dec));
+			System.out.println(" === END CHALLENGE 7 === ");
+		} catch (InvalidKeyException e) {
+			e.printStackTrace();
+		} catch (IllegalBlockSizeException e) {
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private static void challenge8() {
+		List<String> linesHex;
+		try {
+			linesHex = CryptoUtils.readFileIntoLines(CryptoUtils.RSC_DIR_PREFIX + "s1c8.txt");
+			// Convert hex to bytes
+			List<byte[]> encLines = new ArrayList<byte[]>();
+			for (int i = 0; i < linesHex.size(); i++) {
+				//				System.out.println(linesHex.get(i));
+				encLines.add(Hex.decodeHex(linesHex.get(i)));
+			}
+			// Check each line for repeating sequence...
+			byte[] curLine, seq1, seq2;
+			int detectedLineNum = -1;
+			System.out.println(" >>> " + linesHex.get(0));
+			System.out.println(" >>> " + linesHex.get(0).length());
+			System.out.println(" >>> " + Arrays.toString(encLines.get(0)));
+			System.out.println(" >>> " + encLines.get(0).length);
+			outer: for (int i = 0; i < encLines.size(); i++) {
+				for (int j = 2; j < 81; j++) {
+					curLine = encLines.get(i);
+					seq1 = CryptoUtils.getSubArray(curLine, 0, j - 1);
+					seq2 = CryptoUtils.getSubArray(curLine, j, 2 * j - 1);
+					if (CryptoUtils.checkArraysSame(seq1, seq2)) {
+						detectedLineNum = i;
+						break outer;
+					}
+				}
+			}
+			System.out.println(" === CHALLENGE 8 RESULT === ");
+			System.out.println("detected line: " + detectedLineNum);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (DecoderException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 }
