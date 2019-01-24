@@ -55,8 +55,8 @@ public class Set1 {
 
 	private static boolean challenge1() {
 		try {
-			return "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
-					.equals(CryptoUtils.hex2base64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"));
+			return "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t".equals(CryptoUtils.hex2base64(
+					"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"));
 		} catch (DecoderException e) {
 			e.printStackTrace();
 			return false;
@@ -65,7 +65,8 @@ public class Set1 {
 
 	private static boolean challenge2() {
 		try {
-			return "746865206b696420646f6e277420706c6179".equals(CryptoUtils.fixedXor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"));
+			return "746865206b696420646f6e277420706c6179".equals(CryptoUtils
+					.fixedXor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"));
 		} catch (DecoderException e) {
 			e.printStackTrace();
 			return false;
@@ -147,7 +148,8 @@ public class Set1 {
 			sec2 = CryptoUtils.getSubArray(enc, i, 2 * i - 1);
 			sec3 = CryptoUtils.getSubArray(enc, 2 * i, 3 * i - 1);
 			sec4 = CryptoUtils.getSubArray(enc, 3 * i, 4 * i - 1);
-			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3) + CryptoUtils.hammingDist(sec3, sec4))) / (3 * i);
+			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3)
+					+ CryptoUtils.hammingDist(sec3, sec4))) / (3 * i);
 
 			if (keySize2Scores.keySet().size() < 3) {
 				keySize2Scores.put(i, hammDistNormalized);
@@ -200,7 +202,8 @@ public class Set1 {
 		}
 	}
 
-	private static void challenge7() throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException {
+	private static void challenge7()
+			throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException {
 		String key = "YELLOW SUBMARINE";
 		String encB64 = CryptoUtils.readFileIntoLine(CryptoUtils.RSC_DIR_PREFIX + "s1c7.txt");
 		Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
@@ -227,30 +230,35 @@ public class Set1 {
 			// Convert hex to bytes
 			List<byte[]> encLines = new ArrayList<byte[]>();
 			for (int i = 0; i < linesHex.size(); i++) {
-				//				System.out.println(linesHex.get(i));
+				// System.out.println(linesHex.get(i));
 				encLines.add(Hex.decodeHex(linesHex.get(i)));
 			}
+
 			// Check each line for repeating sequence...
-			byte[] curLine, seq1, seq2;
-			int detectedLineNum = -1;
-			System.out.println(" >>> " + linesHex.get(0));
-			System.out.println(" >>> " + linesHex.get(0).length());
-			System.out.println(" >>> " + Arrays.toString(encLines.get(0)));
-			System.out.println(" >>> " + encLines.get(0).length);
-			outer: for (int i = 0; i < encLines.size(); i++) {
-				for (int j = 2; j < 81; j++) {
-					curLine = encLines.get(i);
-					seq1 = CryptoUtils.getSubArray(curLine, 0, j - 1);
-					seq2 = CryptoUtils.getSubArray(curLine, j, 2 * j - 1);
-					if (CryptoUtils.checkArraysSame(seq1, seq2)) {
-						detectedLineNum = i;
-						break outer;
+			int blockSize = 16; // block size in bytes
+			byte[] block, line;
+			int bestScore = Integer.MIN_VALUE, curScore, bestLineNum = 0;
+
+			for (int i = 0; i < encLines.size(); i++) {
+				curScore = 0;
+				line = encLines.get(i);
+				for (int j = 0; j < encLines.get(0).length / blockSize; j++) {
+					block = CryptoUtils.getSubArray(line, blockSize * j, blockSize * (j + 1) - 1);
+					if (CryptoUtils.doesArrayContainSubArray(line, block)) {
+						curScore++;
 					}
+				}
+				if (curScore > bestScore) {
+					System.out.println("bestScore = " + curScore);
+					System.out.println("bestLineNum = " + i);
+					bestScore = curScore;
+					bestLineNum = i;
 				}
 			}
 			System.out.println(" === CHALLENGE 8 RESULT === ");
-			System.out.println("detected line: " + detectedLineNum);
-
+			System.out.println("bestScore = " + bestScore);
+			System.out.println("bestLineNum = " + bestLineNum);
+			System.out.println("bestLine = " + linesHex.get(bestLineNum));
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (DecoderException e) {

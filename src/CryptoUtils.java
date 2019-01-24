@@ -16,16 +16,16 @@ public class CryptoUtils {
 	public static final String RSC_DIR_PREFIX = "src\\rsc\\";
 	public static Map<Character, Double> CHAR_FREQ_TBL = new HashMap<Character, Double>();
 	static {
-		//		CHAR_FREQ_TBL.put('0', 12.02);
-		//		CHAR_FREQ_TBL.put('1', 12.02);
-		//		CHAR_FREQ_TBL.put('2', 12.02);
-		//		CHAR_FREQ_TBL.put('3', 12.02);
-		//		CHAR_FREQ_TBL.put('4', 12.02);
-		//		CHAR_FREQ_TBL.put('5', 12.02);
-		//		CHAR_FREQ_TBL.put('6', 12.02);
-		//		CHAR_FREQ_TBL.put('7', 12.02);
-		//		CHAR_FREQ_TBL.put('8', 12.02);
-		//		CHAR_FREQ_TBL.put('9', 12.02);
+		// CHAR_FREQ_TBL.put('0', 12.02);
+		// CHAR_FREQ_TBL.put('1', 12.02);
+		// CHAR_FREQ_TBL.put('2', 12.02);
+		// CHAR_FREQ_TBL.put('3', 12.02);
+		// CHAR_FREQ_TBL.put('4', 12.02);
+		// CHAR_FREQ_TBL.put('5', 12.02);
+		// CHAR_FREQ_TBL.put('6', 12.02);
+		// CHAR_FREQ_TBL.put('7', 12.02);
+		// CHAR_FREQ_TBL.put('8', 12.02);
+		// CHAR_FREQ_TBL.put('9', 12.02);
 
 		CHAR_FREQ_TBL.put('a', 12.02);
 		CHAR_FREQ_TBL.put('b', 9.1);
@@ -270,6 +270,7 @@ public class CryptoUtils {
 	public static byte findKeyXorSingleChar(byte[] input) throws DecoderException {
 		return findKeyXorSingleChar(input, false);
 	}
+
 	public static byte findKeyXorSingleChar(byte[] input, boolean verbose) throws DecoderException {
 		byte key = -1;
 		double highScore = 0, score;
@@ -305,6 +306,7 @@ public class CryptoUtils {
 		}
 		return Hex.encodeHexString(b);
 	}
+
 	public static byte[] repeatingKeyXor(byte[] msg, byte[] k) {
 		int keyLen = k.length;
 		byte[] output = new byte[msg.length];
@@ -313,14 +315,17 @@ public class CryptoUtils {
 		}
 		return output;
 	}
+
 	public static boolean strIs(String s) {
 		return s != null && s != "";
 	}
+
 	public static int hammingDistPretty(String s1, String s2) throws DecoderException {
 		String h1 = string2Hex(s1);
 		String h2 = string2Hex(s2);
 		return hammingDist(Hex.decodeHex(h1), Hex.decodeHex(h2));
 	}
+
 	public static int hammingDist(byte[] b1, byte[] b2) {
 		if (b1.length != b2.length) {
 			throw new IllegalArgumentException("Input arrays must be same length");
@@ -342,6 +347,7 @@ public class CryptoUtils {
 		}
 		return output;
 	}
+
 	public static byte[][] transpose(byte[][] A) {
 		int M = A.length;
 		int N = A[0].length;
@@ -353,6 +359,7 @@ public class CryptoUtils {
 		}
 		return output;
 	}
+
 	public static boolean checkArraysSame(byte[] x, byte[] y) {
 		if (x.length != y.length) {
 			throw new IllegalArgumentException("Arrays must be same length");
@@ -365,6 +372,20 @@ public class CryptoUtils {
 		return true;
 	}
 
+	public static boolean doesArrayContainSubArray(byte[] x, byte[] sub) {
+		if (sub.length > x.length) {
+			throw new IllegalArgumentException("Sub array cannot be longer than main array");
+		}
+		byte[] section;
+		for (int i = 0; i < x.length - sub.length + 1; i++) {
+			section = getSubArray(x, i, i + sub.length - 1);
+			if (checkArraysSame(sub, section)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static String readFileIntoLine(String filePath) throws FileNotFoundException, IOException {
 		String output = "";
 		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
@@ -375,6 +396,7 @@ public class CryptoUtils {
 		}
 		return output;
 	}
+
 	public static List<String> readFileIntoLines(String filePath) throws FileNotFoundException, IOException {
 		List<String> output = new ArrayList<String>();
 		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
@@ -387,12 +409,12 @@ public class CryptoUtils {
 	}
 
 	public static void main(String[] args) {
-		//		System.out.println(scoreCharFreq(Hex.decodeHex("abc")));
+		// System.out.println(scoreCharFreq(Hex.decodeHex("abc")));
 		System.out.println((char) ('a' ^ '\u0000'));
 		System.out.println((char) ('b' ^ 'a'));
 		System.out.println((char) ('c' ^ 'a'));
 		try {
-			//			System.out.println(xorSingleChar("abc", '\u0000'));
+			// System.out.println(xorSingleChar("abc", '\u0000'));
 			byte[] decodeHex = Hex.decodeHex("656667");
 			System.out.println(Arrays.toString(decodeHex));
 			System.out.println(Hex.encodeHex(decodeHex));
@@ -416,6 +438,16 @@ public class CryptoUtils {
 		}
 		System.out.println(Arrays.toString(Base64.decodeBase64("abcd")));
 		byte[] b = { 0, 1, 2, 3, 4, 5 };
+		byte[] c = { 0, 1, 2, 3, 4, 5 };
+		byte[] d = { 0, 1, 2, 3, 4, 9 };
+		byte[] sub1 = { 7, 8, 9 };
+		byte[] sub2 = { 2, 3, 4 };
 		System.out.println(Arrays.toString(getSubArray(b, 1, 3)));
+		System.out.println(checkArraysSame(b, c));
+		System.out.println(checkArraysSame(b, d));
+
+		System.out.println("sub1 : " + doesArrayContainSubArray(b, sub1));
+		System.out.println("sub2 : " + doesArrayContainSubArray(b, sub2));
+
 	}
 }
