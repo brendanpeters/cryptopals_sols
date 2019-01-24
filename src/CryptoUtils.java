@@ -2,17 +2,28 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
 public class CryptoUtils {
+	public static final int AES_BLOCK_SIZE_BYTES = 16;
+	public static final String YELLOW_SUBMARINE = "YELLOW SUBMARINE";
 	public static final String RSC_DIR_PREFIX = "src\\rsc\\";
 	public static Map<Character, Double> CHAR_FREQ_TBL = new HashMap<Character, Double>();
 	static {
@@ -222,14 +233,15 @@ public class CryptoUtils {
 		HEX_CHAR_2_CHAR.put("20", ' ');
 
 	}
+	private static final byte[] UNKNOWN_KEY = generateRandomAesKey();
 
 	public static String fixedXor(String s1, String s2) throws DecoderException {
 		byte[] b1 = Hex.decodeHex(s1);
 		byte[] b2 = Hex.decodeHex(s2);
-		return Hex.encodeHexString(xorByteArrays(b1, b2));
+		return Hex.encodeHexString(xor(b1, b2));
 	}
 
-	public static byte[] xorByteArrays(byte[] b1, byte[] b2) {
+	public static byte[] xor(byte[] b1, byte[] b2) {
 		if (b1.length != b2.length) {
 			throw new IllegalArgumentException("Input arrays must be same length");
 		}
@@ -408,6 +420,164 @@ public class CryptoUtils {
 		return output;
 	}
 
+	public static byte[] padToBlockSize(byte[] x, int blockSize) {
+		byte[] output = new byte[x.length <= blockSize ? x.length + (blockSize % x.length) : (x.length / blockSize + 1) * blockSize];
+		for (int i = 0; i < x.length; i++) {
+			output[i] = x[i];
+		}
+		return output;
+	}
+
+	public static byte[] ecb(byte[] msg, byte[] key, boolean encrypt)
+			throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+		msg = padToBlockSize(msg, AES_BLOCK_SIZE_BYTES);
+		Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
+		c.init(encrypt ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"));
+		return c.doFinal(msg);
+	}
+	public static byte[] cbc(byte[] msg, byte[] key, byte[] iv, boolean encrypt)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		if (iv.length != AES_BLOCK_SIZE_BYTES) {
+			throw new IllegalArgumentException("IV must be of length 16 bytes");
+		}
+		msg = padToBlockSize(msg, AES_BLOCK_SIZE_BYTES);
+		byte[][] msgBlocks = breakIntoBlocks(msg, AES_BLOCK_SIZE_BYTES);
+		byte[][] outputBlocks = new byte[msgBlocks.length][msgBlocks[0].length];
+		byte[] prevCipherText = iv;
+		for (int i = 0; i < msgBlocks.length; i++) { // iterate through blocks
+			outputBlocks[i] = cbcStep(msgBlocks[i], prevCipherText, key, encrypt);
+			prevCipherText = encrypt ? outputBlocks[i] : msgBlocks[i];
+		}
+		return flatten(outputBlocks);
+	}
+	private static byte[] cbcStep(byte[] msg, byte[] prevCipherText, byte[] key, boolean encrypt)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		byte[] plainTextPadded = padToBlockSize(msg, AES_BLOCK_SIZE_BYTES);
+		if (encrypt) {
+			return ecb(xor(plainTextPadded, prevCipherText), key, encrypt);
+		} else {
+			return xor(ecb(msg, key, encrypt), prevCipherText);
+		}
+	}
+
+	public static byte[] generateRandomAesKey() {
+		Random rng = new Random();
+		byte[] output = new byte[AES_BLOCK_SIZE_BYTES];
+		rng.nextBytes(output);
+		return output;
+	}
+	public static Pair<byte[], Boolean> encryptionOracle(byte[] plainText)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+
+		Random rng = new Random();
+
+		// append bytes before and after
+		int numBefore = 5 + rng.nextInt(5);
+		int numAfter = 5 + rng.nextInt(5);
+		byte[] padded = new byte[numBefore + plainText.length + numAfter];
+		for (int i = 0; i < plainText.length; i++) {
+			padded[i + numBefore] = plainText[i];
+		}
+
+		// encrypt under either ECB or CBC
+		byte[] enc;
+		boolean usedEcb = rng.nextBoolean();
+		if (usedEcb) {
+			enc = ecb(padded, generateRandomAesKey(), true);
+		} else {
+			enc = cbc(padded, generateRandomAesKey(), generateRandomAesKey(), true);
+		}
+
+		return new Pair<byte[], Boolean>(enc, usedEcb);
+	}
+	public static byte[] encryptionOracleECB(byte[] plainText, byte[] unknown)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+
+		//		Random rng = new Random();
+		//		byte[] msg = append(plainText, unknown);
+
+		// append bytes before and after
+		//		int numBefore = 5 + rng.nextInt(5);
+		//		int numAfter = 5 + rng.nextInt(5);
+		//		byte[] padded = new byte[numBefore + plainText.length + numAfter];
+		//		byte[] padded = new byte[plainText.length];
+		//		for (int i = 0; i < plainText.length; i++) {
+		//			padded[i] = plainText[i];
+		//		}
+
+		return ecb(append(plainText, unknown), UNKNOWN_KEY, true);
+	}
+	public static int scorePatterns(byte[] x, int blockSize) {
+		if (x.length % blockSize != 0) {
+			x = padToBlockSize(x, blockSize);
+		}
+		byte[] block;
+		int score = 0;
+		scanLoop: for (int j = 0; j < x.length / blockSize; j++) {
+			block = getSubArray(x, blockSize * j, blockSize * (j + 1) - 1);
+			for (int k = 0; k < x.length / blockSize; k++) {
+				if (k != j && checkArraysSame(block, getSubArray(x, blockSize * k, blockSize * (k + 1) - 1))) { // block matches current segment
+					score++;
+					continue scanLoop;
+				}
+			}
+		}
+		return score;
+	}
+
+	public static byte[][] breakIntoBlocks(byte[] x, int blockSize) {
+		byte[][] output = new byte[x.length / blockSize + (x.length % blockSize == 0 ? 0 : 1)][blockSize];
+		int idx;
+		outer: for (int i = 0; i < output.length; i++) {
+			for (int j = 0; j < blockSize; j++) {
+				idx = i * blockSize + j;
+				if (idx < x.length) {
+					output[i][j] = x[idx];
+				} else {
+					break outer;
+				}
+			}
+		}
+		return output;
+	}
+	public static byte[] flatten(byte[][] x) {
+		byte[] output = new byte[x.length * x[0].length];
+		for (int i = 0; i < x.length; i++) {
+			for (int j = 0; j < x[0].length; j++) {
+				output[i * x[0].length + j] = x[i][j];
+			}
+		}
+		return output;
+	}
+	public static byte[] append(byte[] first, byte[] second) {
+		byte[] output = new byte[first.length + second.length];
+		for (int i = 0; i < first.length; i++) {
+			output[i] = first[i];
+		}
+		for (int i = 0; i < second.length; i++) {
+			output[i + first.length] = second[i];
+		}
+		return output;
+	}
+	public static void print2dArray(byte[][] x) {
+		String output = "";
+		for (int i = 0; i < x.length; i++) {
+			output += "[";
+			for (int j = 0; j < x[0].length; j++) {
+				output += x[i][j];
+				if (j < x[0].length - 1) {
+					output += ", ";
+				}
+			}
+			output += "]\n";
+		}
+		output += "";
+		System.out.println(output);
+	}
+	public static void print2dArrayDims(byte[][] x) {
+		System.out.println("(" + x.length + " x " + x[0].length + ")");
+	}
+
 	public static void main(String[] args) {
 		// System.out.println(scoreCharFreq(Hex.decodeHex("abc")));
 		System.out.println((char) ('a' ^ '\u0000'));
@@ -449,5 +619,32 @@ public class CryptoUtils {
 		System.out.println("sub1 : " + doesArrayContainSubArray(b, sub1));
 		System.out.println("sub2 : " + doesArrayContainSubArray(b, sub2));
 
+		byte[] t = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+		byte[][] s = { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
+		print2dArray(breakIntoBlocks(t, 4));
+		print2dArray(s);
+		System.out.println(Arrays.toString(flatten(s)));
+
+		for (int i = 0; i < 10; i++) {
+			System.out.println(Arrays.toString(generateRandomAesKey()));
+		}
+		try {
+			encryptionOracle(t);
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+			e.printStackTrace();
+		}
+		System.out.println("append test : " + Arrays.toString(append(b, sub1)));
+	}
+
+	// pair class for testing results of certain functions
+	public static class Pair<X, Y> {
+
+		public final X x;
+		public final Y y;
+
+		public Pair(X x, Y y) {
+			this.x = x;
+			this.y = y;
+		}
 	}
 }

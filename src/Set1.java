@@ -12,10 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
@@ -44,10 +42,6 @@ public class Set1 {
 			e.printStackTrace();
 		} catch (DecoderException e) {
 			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (NoSuchPaddingException e) {
-			e.printStackTrace();
 		}
 		System.out.println("DONE");
 		challenge8();
@@ -55,8 +49,8 @@ public class Set1 {
 
 	private static boolean challenge1() {
 		try {
-			return "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t".equals(CryptoUtils.hex2base64(
-					"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"));
+			return "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
+					.equals(CryptoUtils.hex2base64("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"));
 		} catch (DecoderException e) {
 			e.printStackTrace();
 			return false;
@@ -65,8 +59,7 @@ public class Set1 {
 
 	private static boolean challenge2() {
 		try {
-			return "746865206b696420646f6e277420706c6179".equals(CryptoUtils
-					.fixedXor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"));
+			return "746865206b696420646f6e277420706c6179".equals(CryptoUtils.fixedXor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965"));
 		} catch (DecoderException e) {
 			e.printStackTrace();
 			return false;
@@ -148,8 +141,7 @@ public class Set1 {
 			sec2 = CryptoUtils.getSubArray(enc, i, 2 * i - 1);
 			sec3 = CryptoUtils.getSubArray(enc, 2 * i, 3 * i - 1);
 			sec4 = CryptoUtils.getSubArray(enc, 3 * i, 4 * i - 1);
-			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3)
-					+ CryptoUtils.hammingDist(sec3, sec4))) / (3 * i);
+			hammDistNormalized = ((double) (CryptoUtils.hammingDist(sec1, sec2) + CryptoUtils.hammingDist(sec2, sec3) + CryptoUtils.hammingDist(sec3, sec4))) / (3 * i);
 
 			if (keySize2Scores.keySet().size() < 3) {
 				keySize2Scores.put(i, hammDistNormalized);
@@ -202,18 +194,23 @@ public class Set1 {
 		}
 	}
 
-	private static void challenge7()
-			throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException {
+	private static void challenge7() {
 		String key = "YELLOW SUBMARINE";
-		String encB64 = CryptoUtils.readFileIntoLine(CryptoUtils.RSC_DIR_PREFIX + "s1c7.txt");
-		Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
 		try {
-			c.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes(), "AES"));
+			String encB64 = CryptoUtils.readFileIntoLine(CryptoUtils.RSC_DIR_PREFIX + "s1c7.txt");
+			byte[] dec = CryptoUtils.ecb(Base64.decodeBase64(encB64), key.getBytes(), false);
 			System.out.println(" === BEGIN CHALLENGE 7 === ");
-			byte[] dec = c.doFinal(Base64.decodeBase64(encB64));
 			System.out.println(new String(dec));
 			System.out.println(" === END CHALLENGE 7 === ");
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		} catch (InvalidKeyException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
 			e.printStackTrace();
 		} catch (IllegalBlockSizeException e) {
 			e.printStackTrace();
@@ -240,14 +237,9 @@ public class Set1 {
 			int bestScore = Integer.MIN_VALUE, curScore, bestLineNum = 0;
 
 			for (int i = 0; i < encLines.size(); i++) {
-				curScore = 0;
 				line = encLines.get(i);
-				for (int j = 0; j < encLines.get(0).length / blockSize; j++) {
-					block = CryptoUtils.getSubArray(line, blockSize * j, blockSize * (j + 1) - 1);
-					if (CryptoUtils.doesArrayContainSubArray(line, block)) {
-						curScore++;
-					}
-				}
+				curScore = CryptoUtils.scorePatterns(line, blockSize);
+
 				if (curScore > bestScore) {
 					System.out.println("bestScore = " + curScore);
 					System.out.println("bestLineNum = " + i);
