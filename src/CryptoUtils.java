@@ -353,6 +353,12 @@ public class CryptoUtils {
 		if (end < start) {
 			throw new IllegalArgumentException("end must be greater than or equal to start");
 		}
+		if (start < 0 || end >= x.length) {
+			throw new IllegalArgumentException("Index out of bounds : length = " + x.length + ", start = " + start + ", end = " + end);
+		}
+		//		System.out.println("start : " + start);
+		//		System.out.println("end : " + end);
+		//		System.out.println("x.length : " + x.length);
 		byte[] output = new byte[end - start + 1];
 		for (int i = start; i <= end; i++) {
 			output[i - start] = x[i];
@@ -374,7 +380,7 @@ public class CryptoUtils {
 
 	public static boolean checkArraysSame(byte[] x, byte[] y) {
 		if (x.length != y.length) {
-			throw new IllegalArgumentException("Arrays must be same length");
+			throw new IllegalArgumentException("Arrays must be same length : x.length = " + x.length + ", y.length = " + y.length);
 		}
 		for (int i = 0; i < x.length; i++) {
 			if (x[i] != y[i]) {
@@ -507,6 +513,31 @@ public class CryptoUtils {
 
 		return ecb(append(plainText, unknown), UNKNOWN_KEY, true);
 	}
+	public static byte[] byteAtATimeECBSimple(byte[] unknown, int blockSize)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		byte[] testPrefix, cmp;
+		int unknownMsgLen = encryptionOracleECB("A".getBytes(), unknown).length - 1; // unknown message length in bytes
+		int numChars = 127, start, end;
+		byte[] decrypted = new byte[0];
+
+		for (int i = 0; i < unknownMsgLen / AES_BLOCK_SIZE_BYTES + 1; i++) {
+			start = AES_BLOCK_SIZE_BYTES * i;
+			end = AES_BLOCK_SIZE_BYTES * (i + 1) - 1;
+			testPrefixLoop: for (int j = AES_BLOCK_SIZE_BYTES - 1; j >= 0; j--) {
+				testPrefix = new byte[j];
+				cmp = getSubArray(encryptionOracleECB(testPrefix, unknown), start, end);
+				for (byte k = 0; k < numChars; k++) {
+					byte[] subArray = getSubArray(encryptionOracleECB(append(append(testPrefix, decrypted), k), unknown), start, end);
+					if (checkArraysSame(cmp, subArray)) {
+						decrypted = append(decrypted, k);
+						continue testPrefixLoop;
+					}
+				}
+			}
+		}
+
+		return decrypted;
+	}
 	public static int scorePatterns(byte[] x, int blockSize) {
 		if (x.length % blockSize != 0) {
 			x = padToBlockSize(x, blockSize);
@@ -558,6 +589,15 @@ public class CryptoUtils {
 			output[i + first.length] = second[i];
 		}
 		return output;
+	}
+	public static byte[] append(byte first, byte[] second) {
+		return append(new byte[] { first }, second);
+	}
+	public static byte[] append(byte[] first, byte second) {
+		return append(first, new byte[] { second });
+	}
+	public static byte[] append(byte first, byte second) {
+		return new byte[] { first, second };
 	}
 	public static void print2dArray(byte[][] x) {
 		String output = "";
@@ -634,6 +674,16 @@ public class CryptoUtils {
 			e.printStackTrace();
 		}
 		System.out.println("append test : " + Arrays.toString(append(b, sub1)));
+
+		byte[] empty = new byte[0];
+		byte b9 = 9;
+		System.out.println("empty : " + Arrays.toString(empty));
+		System.out.println("empty + b : " + Arrays.toString(append(empty, b)));
+		System.out.println("b + empty : " + Arrays.toString(append(b, empty)));
+		System.out.println("empty + empty : " + Arrays.toString(append(empty, empty)));
+		System.out.println("b9 + b : " + Arrays.toString(append(b9, b)));
+		System.out.println("b + b9 : " + Arrays.toString(append(b, b9)));
+		System.out.println("b9 + b9 : " + Arrays.toString(append(b9, b9)));
 	}
 
 	// pair class for testing results of certain functions

@@ -81,6 +81,8 @@ public class Set2 {
 	private static void challenge12() {
 		byte[] unknown = Base64.decodeBase64("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg\r\n" + "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq\r\n"
 				+ "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg\r\n" + "YnkK");
+		//		byte[] unknown = (CryptoUtils.YELLOW_SUBMARINE + "|" + CryptoUtils.YELLOW_SUBMARINE + "|" + CryptoUtils.YELLOW_SUBMARINE).getBytes();
+		String answer = new String(unknown);
 		String test = "";
 		try {
 			System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^");
@@ -91,14 +93,14 @@ public class Set2 {
 			}
 
 			int blockSize = CryptoUtils.AES_BLOCK_SIZE_BYTES;
-			byte[] oneShort, knownSoFar;
-			int unknownMsgLen = CryptoUtils.encryptionOracleECB("A".getBytes(), unknown).length - 1;
-			byte curEncryptedByte;
-			oneShort = new byte[blockSize - 1];
-			for (int i = 0; i < unknownMsgLen; i++) { // do for each byte in unknown message
-				//				curEncryptedByte = CryptoUtils.encryptionOracleECB(oneShort, unknown)[0];
 
-			}
+			byte[] decrypted = CryptoUtils.byteAtATimeECBSimple(unknown, blockSize);
+			System.out.println(" === BEGIN CHALLENGE 12 RESULTS === ");
+			System.out.println("decrypted : ");
+			System.out.println(new String(decrypted));
+			System.out.println("orig : ");
+			System.out.println(answer);
+			System.out.println(" === ENG CHALLENGE 12 RESULTS === ");
 
 		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 			e.printStackTrace();
