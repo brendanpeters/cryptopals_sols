@@ -436,7 +436,9 @@ public class CryptoUtils {
 
 	public static byte[] ecb(byte[] msg, byte[] key, boolean encrypt)
 			throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-		msg = padToBlockSize(msg, AES_BLOCK_SIZE_BYTES);
+		if (encrypt) {
+			msg = padToBlockSize(msg, AES_BLOCK_SIZE_BYTES);
+		}
 		Cipher c = Cipher.getInstance("AES/ECB/NoPadding");
 		c.init(encrypt ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"));
 		return c.doFinal(msg);
@@ -498,19 +500,6 @@ public class CryptoUtils {
 	}
 	public static byte[] encryptionOracleECB(byte[] plainText, byte[] unknown)
 			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
-
-		//		Random rng = new Random();
-		//		byte[] msg = append(plainText, unknown);
-
-		// append bytes before and after
-		//		int numBefore = 5 + rng.nextInt(5);
-		//		int numAfter = 5 + rng.nextInt(5);
-		//		byte[] padded = new byte[numBefore + plainText.length + numAfter];
-		//		byte[] padded = new byte[plainText.length];
-		//		for (int i = 0; i < plainText.length; i++) {
-		//			padded[i] = plainText[i];
-		//		}
-
 		return ecb(append(plainText, unknown), UNKNOWN_KEY, true);
 	}
 	public static byte[] byteAtATimeECBSimple(byte[] unknown, int blockSize)
@@ -527,8 +516,7 @@ public class CryptoUtils {
 				testPrefix = new byte[j];
 				cmp = getSubArray(encryptionOracleECB(testPrefix, unknown), start, end);
 				for (byte k = 0; k < numChars; k++) {
-					byte[] subArray = getSubArray(encryptionOracleECB(append(append(testPrefix, decrypted), k), unknown), start, end);
-					if (checkArraysSame(cmp, subArray)) {
+					if (checkArraysSame(cmp, getSubArray(encryptionOracleECB(append(append(testPrefix, decrypted), k), unknown), start, end))) {
 						decrypted = append(decrypted, k);
 						continue testPrefixLoop;
 					}
@@ -538,6 +526,69 @@ public class CryptoUtils {
 
 		return decrypted;
 	}
+
+	public static String profileFor(String emailAddress) {
+		String delimiter = "&", associator = "=";
+		if (emailAddress.contains(delimiter) || emailAddress.contains(associator)) {
+			throw new IllegalArgumentException("Email address cannot contain the characters '" + delimiter + "' or '" + associator + "'");
+		}
+		//		Map<String, Object> profile = new HashMap<String, Object>();
+		//		profile.put("email", emailAddress);
+		//		profile.put("uid", 10);
+		//		profile.put("role", "user");
+		//
+		//		return map2String(profile, delimiter, associator);
+		return "email=" + emailAddress + "&uid=10&role=user";
+	}
+	public static byte[] encryptProfileECB(String email, byte[] key)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		return ecb(profileFor(email).getBytes(), key, true);
+	}
+	public static Map<String, Object> decryptProfileAndParseECB(byte[] profileEncrypted, byte[] key)
+			throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		String s = new String(ecb(profileEncrypted, key, false)).trim();
+		return string2Map(s, "&", "=");
+	}
+	//	public static void printWithBlockDivisions(String s, int blockSize) {
+	//		StringBuilder output = new StringBuilder();
+	//		for (int i = 0; i < s.length(); i++) {
+	//			output.append(s.charAt(i));
+	//			if (i > 0 && i % (blockSize - 1) == 0) {
+	//				output.append("|");
+	//			}
+	//		}
+	//		System.out.println(output.toString());
+	//	}
+
+	public static Map<String, Object> string2Map(String s, String delimiter, String associator) {
+		Map<String, Object> output = new HashMap<String, Object>();
+		String[] entries = s.split(delimiter), e;
+		for (int i = 0; i < entries.length; i++) {
+			e = entries[i].split(associator);
+			if (e.length != 2) {
+				throw new IllegalArgumentException("Invalid associator format");
+			}
+			if (output.put(e[0], e[1]) != null) {
+				throw new IllegalArgumentException("Duplicate key : " + e[0]);
+			}
+		}
+		return output;
+	}
+	public static String map2String(Map<String, Object> m, String delimiter, String associator) {
+		List<String> keys = new ArrayList<String>(m.keySet());
+		int numKeys = keys.size();
+		String output = "";
+		String curKey;
+		for (int i = 0; i < numKeys; i++) {
+			curKey = keys.get(i);
+			output += curKey + associator + m.get(curKey);
+			if (i < numKeys - 1) {
+				output += delimiter;
+			}
+		}
+		return output;
+	}
+
 	public static int scorePatterns(byte[] x, int blockSize) {
 		if (x.length % blockSize != 0) {
 			x = padToBlockSize(x, blockSize);
@@ -684,6 +735,17 @@ public class CryptoUtils {
 		System.out.println("b9 + b : " + Arrays.toString(append(b9, b)));
 		System.out.println("b + b9 : " + Arrays.toString(append(b, b9)));
 		System.out.println("b9 + b9 : " + Arrays.toString(append(b9, b9)));
+
+		System.out.println(map2String(string2Map("foo=bar&baz=qux&zap=zazzle", "&", "="), "&", "="));
+
+		System.out.println(profileFor("foo@bar.com"));
+
+		byte[] key = YELLOW_SUBMARINE.getBytes();
+		try {
+			System.out.println("=== " + decryptProfileAndParseECB(encryptProfileECB(profileFor("foo@bar.com"), key), key));
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+			e.printStackTrace();
+		}
 	}
 
 	// pair class for testing results of certain functions

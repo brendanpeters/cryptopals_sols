@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Map;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -16,6 +17,7 @@ public class Set2 {
 		challenge10();
 		challenge11();
 		challenge12();
+		challenge13();
 	}
 
 	private static void challenge9() {
@@ -101,6 +103,33 @@ public class Set2 {
 			System.out.println("orig : ");
 			System.out.println(answer);
 			System.out.println(" === ENG CHALLENGE 12 RESULTS === ");
+
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private static void challenge13() {
+		byte[] key = CryptoUtils.generateRandomAesKey();
+		String profileText = CryptoUtils.profileFor("foo@bar.com");
+		System.out.println("profileText : " + profileText);
+		try {
+			byte[] cipherText = CryptoUtils.encryptProfileECB("foo@bar.com", key);
+			Map<String, Object> profile = CryptoUtils.decryptProfileAndParseECB(cipherText, key);
+			System.out.println(profile);
+
+			String email = "bpxyz@abc.com";
+			System.out.println(CryptoUtils.profileFor(email));
+			String b = "bbbbbbbbbb";
+			String c = "admin" + new String(new byte[11]);
+			System.out.println(CryptoUtils.profileFor(b + c));
+
+			byte[] encryptProfileECB = CryptoUtils.encryptProfileECB(email, key);
+			System.out.println(new String(encryptProfileECB));
+			byte[] cipherTextBeginning = CryptoUtils.getSubArray(encryptProfileECB, 0, 31);
+			byte[] cipherTextAdmin = CryptoUtils.getSubArray(CryptoUtils.encryptProfileECB(b + c, key), 16, 31);
+			System.out.println(CryptoUtils.decryptProfileAndParseECB(CryptoUtils.append(cipherTextBeginning, cipherTextAdmin), key));
 
 		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
 			e.printStackTrace();
